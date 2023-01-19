@@ -1,0 +1,206 @@
+{
+    "column_rules": {
+        "default": {
+            "revenues from intra group transactions with other tax jurisdictions us": {
+                "sink": "related_revenues",
+                "justification": "<no justification>"
+            },
+            "revenues from third party sales us": {
+                "sink": "unrelated_revenues",
+                "justification": "standard"
+            },
+            "profit loss beforetax us": {
+                "sink": "profit_before_tax",
+                "justification": "<no justification>"
+            },
+            "number of employees": {
+                "sink": "employees",
+                "justification": "<no justification>"
+            },
+            "tangible assets other than cash and cash equivalents us": {
+                "sink": "tangible_assets",
+                "justification": "<no justification>"
+            },
+            "stated capital": {
+                "sink": "stated capital",
+                "justification": "<no justification>"
+            },
+            "corporate taxes paid refunded": {
+                "sink": "tax_paid",
+                "justification": "std"
+            },
+            "related party revenue": {
+                "sink": "related_revenues",
+                "justification": "<no justification>"
+            },
+            "total revenues": {
+                "sink": "total_revenues",
+                "justification": "<no justification>"
+            },
+            "profit loss before tax": {
+                "sink": "profit_before_tax",
+                "justification": "<no justification>"
+            },
+            "statutory corporate tax rate": {
+                "sink": "to_drop",
+                "justification": "<no justification>"
+            },
+            "effective current corporate tax rate": {
+                "sink": "to_drop",
+                "justification": "<no justification>"
+            },
+            "third party revenue": {
+                "sink": "unrelated_revenues",
+                "justification": "<no justification>"
+            },
+            "accumulated earnings": {
+                "sink": "accumulated earnings",
+                "justification": "<no justification>"
+            },
+            "revenues third party": {
+                "sink": "unrelated_revenues",
+                "justification": "<no justification>"
+            },
+            "revenues intra group": {
+                "sink": "related_revenues",
+                "justification": "<no justification>"
+            },
+            "tangible assets other than cash and cash equivalents": {
+                "sink": "tangible_assets",
+                "justification": "<no justification>"
+            },
+            "corporate income tax paid on a cash basis": {
+                "sink": "tax_paid",
+                "justification": "<no justification>"
+            },
+            "related party revenues": {
+                "sink": "related_revenues",
+                "justification": "<no justification>"
+            },
+            "unrelated party revenues": {
+                "sink": "unrelated_revenues",
+                "justification": "<no justification>"
+            }
+        },
+        "bp": {
+            "default": {
+                "commentary see country analysis": "commentary",
+                "corporate taxes accrued": "tax_accrued",
+                "tangible assets": "tangible_assets",
+                "corporate income taxes accrued": "tax_accrued"
+            }
+        },
+        "newmont": {
+            "default": {
+                "royalties": "to_drop",
+                "other information": "to_drop",
+                "corporate income tax": "tax_paid",
+                "employer payroll taxes": "to_drop",
+                "royalty related income tax and mining taxes": "to_drop",
+                "tangible assets millions": "tangible_assets",
+                "revenues": "to_drop",
+                "taxes paid refunded": "to_drop",
+                "number of contractors": "to_drop",
+                "total taxes borne": "to_drop",
+                "income tax benefit expense millions": "to_drop",
+                "income tax expense benefit": "tax_accrued",
+                "tax effects of items that are not deductible taxable for tax purposes": "to_drop",
+                "statutory rate": "to_drop",
+                "tax effects of impacts of timing differences": "to_drop",
+                "financial statement tax rate": "to_drop",
+                "income tax expense benefit at statutory tax rate": "to_drop",
+                "current tax expense benefit": "to_drop",
+                "royalty related income tax and or mining tax net of federal benefit": "to_drop"
+            },
+            "2021.12.31": {
+                "other taxes": {
+                    "sink": "to_drop",
+                    "justification": "<no justification>"
+                }
+            }
+        },
+        "bhp": {
+            "default": {
+                "country by country effective corporate tax rate": {
+                    "sink": "to_drop",
+                    "justification": "not part of standard variables"
+                }
+            },
+            "2020.06.30": {
+                "corporate income tax paid on a cash basis us": {
+                    "sink": "tax_paid",
+                    "justification": "carefully_checked"
+                },
+                "corporate income tax accrued on profit loss us": {
+                    "sink": "tax_accrued",
+                    "justification": "carefully_checked"
+                }
+            }
+        },
+        "inpost": {
+            "2021": {
+                "corporate income tax accrued on profit loss": {
+                    "sink": "tax_accrued",
+                    "justification": "checked"
+                }
+            },
+            "2020": {
+                "corporate income tax accrued on profit loss": {
+                    "sink": "tax_accrued",
+                    "justification": "checked"
+                }
+            }
+        }
+    },
+    "jurisdiction_rules": {
+        "default": {
+            "americas": "delete_row",
+            "other americas": "other america",
+            "total subsidiaries": "delete_row",
+            "joint ventures and associates": "delete_row",
+            "loss on disposal of businesses and corporate transactions": "delete_row",
+            "intra group revenue": "delete_row",
+            "_regex_^total.*": "delete_row",
+            "_regex_^others?$": "other",
+            "other countries": "other",
+            "grand total": "delete_row",
+            "rest of europe": "other europe",
+            "_regex_.*total.*": "delete_row",
+            "_regex_^sum .*": "delete_row",
+            "_regex_.*(elimination)|(group).*": "delete_row",
+            "other north africa region": "other north africa",
+            "_regex_.*group.*": "delete_row",
+            "other jurisdictions": "other",
+            "rest of asia": "other asia",
+            "_regex_.*consolidation.*": "delete_row",
+            "_regex_.*operation.*": "delete_row",
+            "_regex_.*aggregate.*": "delete_row",
+            "as the basis for calculating": "delete_row",
+            "permanent establishments": "delete_row",
+            "the actual payment made": "delete_row",
+            "other european countries": "other europe",
+            "rest of the world": "other",
+            "rettifiche di consolidato": "delete_row",
+            "other middle east": "other middle east",
+            "_regex_.*gruppo.*": "delete_row",
+            "rest of world": "other",
+            "<empty>": "delete_row",
+            "p r of china": "CHN",
+            "uae": "ARE"
+        },
+        "newmont": {
+            "default": {
+                "newmont corporation": "delete_row",
+                "jv": "delete_row"
+            }
+        },
+        "bp": {
+            "default": {
+                "other middle east region": {
+                    "sink": "other middle east region",
+                    "justification": "<no justification>"
+                }
+            }
+        }
+    }
+}

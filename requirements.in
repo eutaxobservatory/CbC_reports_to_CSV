@@ -1,0 +1,6 @@
+# requirements.in
+camelot
+ExtractTable
+pandas
+pycountry
+numpy

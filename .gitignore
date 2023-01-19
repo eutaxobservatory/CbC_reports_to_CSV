@@ -1,0 +1,12 @@
+/**/__pycache__
+# do not upload source files nor outputs 
+inputs/**
+intermediate_files/**
+files_after_human_intervention/**
+outputs/**
+ExtractTable.com/**
+camelot/**
+
+**/.*
+!.gitignore
+/local_archieve/**
