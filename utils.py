@@ -8,7 +8,6 @@ import pycountry
 from cbc_report import CbCReport
 from log import logger
 
-logger.info("start utils")
 pd.set_option("display.max_columns", None)
 
 

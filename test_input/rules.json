@@ -80,6 +80,10 @@
             "unrelated party revenues": {
                 "sink": "unrelated_revenues",
                 "justification": "<no justification>"
+            },
+            "profit loss before tax us": {
+                "sink": "profit_before_tax",
+                "justification": "<no justification>"
             }
         },
         "bp": {
@@ -198,6 +202,16 @@
             "default": {
                 "other middle east region": {
                     "sink": "other middle east region",
+                    "justification": "<no justification>"
+                }
+            },
+            "2020.12.31": {
+                "middle east regionb": {
+                    "sink": "other middle east",
+                    "justification": "<no justification>"
+                },
+                "north africa region": {
+                    "sink": "north africa region",
                     "justification": "<no justification>"
                 }
             }
