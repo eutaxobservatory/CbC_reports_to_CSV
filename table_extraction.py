@@ -3,12 +3,19 @@ import os
 import shutil
 from collections.abc import Iterable
 from os.path import exists
+from concurrent import futures
+import dill as pickle
 
 import camelot.io as camelot
 import pandas as pd
 from cbc_report import CbCReport
 from ExtractTable import ExtractTable
 from log import logger
+
+
+def camelot_extraction(pickled_read_pdf, fixed_options, options):
+    unpickled_read_pdf = pickle.loads(pickled_read_pdf)
+    return (options, unpickled_read_pdf(**fixed_options, **options))
 
 
 def get_DataFrames(
@@ -58,49 +65,45 @@ def get_DataFrames(
                 json.dump(tables, outfile)
 
         def write_camelot_json(file_path, file_name, pages):
+            logger.info("write_camelot_json")
             pages = ",".join(map(str, pages))
             # in order to add alternative ways of extracting the pdf, add to the dict below
             # WARNING: row_tol is very tricky and we can't really rely on camelot's accuracy - it tends to give higher values with higher row_tol (by design...) but often ruins the table from a our perspective.
-            extractions = {  # camelot.read_pdf(file, flavor='stream', pages = pages, row_tol=0, flag_size = True, strip_tex="\n"),
-                "stream, tol=5": camelot.read_pdf(
-                    file_path,
-                    flavor="stream",
-                    pages=pages,
-                    row_tol=5,
-                    flag_size=True,
-                    strip_tex="\n",
-                ),
-                "stream, tol=2": camelot.read_pdf(
-                    file_path,
-                    flavor="stream",
-                    pages=pages,
-                    flag_size=True,
-                    strip_tex="\n",
-                ),
-                "lattice, copy_text horizontally": camelot.read_pdf(
-                    file_path,
-                    flavor="lattice",
-                    pages=pages,
-                    copy_text=["h"],
-                    flag_size=True,
-                    strip_tex="\n",
-                ),
-            }
 
-            method_extraction = dict()
-            # v is a TableList (camelot object). from it, we can extract the pd.Dataframes
-            # decision to store as json probably not the best but not important - it works and we are not using camelot anyway
-            # advantage was to have a single file, not multiple CSV files.
-            for k, v in extractions.items():
-                method_extraction[k] = list(
-                    map(
-                        lambda x: {
-                            "json_table": x.df.to_dict(),
-                            "accuracy": x.accuracy,
-                        },
-                        v,
+            with futures.ProcessPoolExecutor() as executor:
+                pickled_camelot = pickle.dumps(camelot.read_pdf)
+                fixed_options = {
+                    "pages": pages,
+                    "flag_size": True,
+                    "strip_tex": "\n",
+                    "filepath": file_path,
+                }
+                options = [
+                    {"flavor": "stream", "row_tol": 5},
+                    {"flavor": "stream", "row_tol": 2},
+                    {"flavor": "lattice", "copy_text": ["h"]},
+                ]
+                to_do = []
+                for option in options:
+                    # fixed_options goes to comeback as results come out of order
+                    to_do.append(
+                        executor.submit(
+                            camelot_extraction, pickled_camelot, fixed_options, option
+                        )
                     )
-                )
+                method_extraction = dict()
+                for i in futures.as_completed(to_do):
+                    # cache as json to have a single file per report, not multiple CSV files.
+                    opts, tables = i.result()
+                    method_extraction[str(opts)] = list(
+                        map(
+                            lambda x: {
+                                "json_table": x.df.to_dict(),
+                                "accuracy": x.accuracy,
+                            },
+                            tables,
+                        )
+                    )
             with open(
                 os.path.join(cache_directory["camelot"], f"{file_name}.json"), "w"
             ) as outfile:
