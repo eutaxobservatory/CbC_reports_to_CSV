@@ -10,4 +10,3 @@ camelot/**
 **/.*
 !.gitignore
 /local_archieve/**
-requirements.in

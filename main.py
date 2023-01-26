@@ -30,6 +30,10 @@ def extract_each_report(
     (Above, extracted means the complete pipeline from pdf to standardized, unique CSV file per report.)
     Temporary files will be inside the respective '/extraction/intermediate_files/<mnc_id>_<end_of_year>/' folder, relative to root of the repo.
     They will be named '<mnc_id>_<end_of_year>_<table_number>.csv'."""
+    # if quiet_mode, make extraction of each report concurrent (in parallel) (TODO)
+
+    # else, make extraction of each report sequential (below)
+    # in any case, make the extractions concurrent within each report (TODO)
     human_bored = quiet_mode
     if force_rewrite:
         shutil.rmtree(write_tables_to_dir)

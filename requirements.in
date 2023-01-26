@@ -1,0 +1,6 @@
+# requirements.in
+pypdf2 < 3.0.0
+camelot-py
+ExtractTable
+pycountry
+opencv-python
