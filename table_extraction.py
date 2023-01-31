@@ -1,6 +1,7 @@
 import abc
 import json
 import os
+import time
 from concurrent import futures
 from os.path import exists
 
@@ -14,18 +15,22 @@ from log import logger
 
 
 def get_remote_ET_result(et_sess: ExtractTable, file_path, pages):
-    print(et_sess.check_usage())
+    logger.info("ET.com - worker started %s, %s\n%s", file_path, pages, time.time())
     return et_sess.process_file(
         filepath=file_path,
         output_format="dict",
         pages=",".join(map(str, pages)),
     )
 
+
 pickled_camelot = pickle.dumps(camelot.read_pdf)
 
 
 def camelot_extraction(pickled_read_pdf, fixed_options, options):
     unpickled_read_pdf = pickle.loads(pickled_read_pdf)
+    logger.info(
+        "camelot_extraction by worker %s %s\n%s", fixed_options, options, time.time()
+    )
     return (options, unpickled_read_pdf(**fixed_options, **options))
 
 
@@ -82,6 +87,7 @@ class ExtractTableExtractor(AbstractExtractor):
         if jobs:
             for job in futures.as_completed(jobs):
                 l = job.result()
+                logger.info("ET.com - worker finished. \n%s \n%s", report, time.time())
                 for tb_number, table in enumerate(l):
                     tables[tb_number] = table
                 with open(os.path.join(self.cache_path, file_name), "w") as outfile:
@@ -96,6 +102,7 @@ class ExtractTableExtractor(AbstractExtractor):
             )
             # DO NOT PUT KEY ONLINE PUBLICLY! Save it in a local file.
             et_sess = ExtractTable(api_key=open(".et_key", "r").read())
+            logger.info("submitting %s to ET", report)
             return [
                 self.executor.submit(get_remote_ET_result, et_sess, file_path, pages)
             ]
@@ -151,15 +158,14 @@ class CamelotExtractor(AbstractExtractor):
             )
         )
 
-    def write_cache(
-        self, report: CbCReport, jobs: list[futures.Future] | None
-    ) -> None:
+    def write_cache(self, report: CbCReport, jobs: list[futures.Future] | None) -> None:
         file_name = f"{os.path.basename(report.filename_of_source)}.json"
         method_extraction = dict()
         if jobs:
             for i in futures.as_completed(jobs):
                 # cache as json to have a single file per report, not multiple CSV files.
                 opts, tables = i.result()
+                logger.info("camelot - worker finished. \n%s \n%s", report, time.time())
                 method_extraction[str(opts)] = list(
                     map(
                         lambda x: {
@@ -192,6 +198,7 @@ class CamelotExtractor(AbstractExtractor):
             to_do = []
             for option in options:
                 # fixed_options goes to comeback as results come out of order
+                logger.info("submitting %s", option)
                 to_do.append(
                     self.executor.submit(
                         camelot_extraction, pickled_camelot, fixed_options, option
@@ -259,6 +266,7 @@ class TableAcc:
 def get_DataFrames(
     report: CbCReport,
     pdf_repo_path,
+    executor: futures.ProcessPoolExecutor,
     intermediate_files_dir="intermediate_files/",
     cache=True,
 ) -> list[pd.DataFrame]:
@@ -267,7 +275,6 @@ def get_DataFrames(
     """
     # TODO option without cache
 
-    executor = futures.ProcessPoolExecutor(max_workers=4)
     et_extractor = ExtractTableExtractor(
         pdf_repo_path, intermediate_files_dir, executor
     )

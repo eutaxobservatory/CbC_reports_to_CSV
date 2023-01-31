@@ -14,11 +14,11 @@ class CbCReport:
         return f"{type(self).__name__}({self.group_name},{self.end_of_year},{self.metadata})"
 
     @property
-    def to_extract(self):
+    def to_extract(self) -> bool:
         try:
-            return self.metadata['to_extract']
+            return self.metadata['to_extract'].casefold() == 'yes'
         except KeyError:
-            return 'no'
+            return False
     @property
     def pages(self):
         try:
