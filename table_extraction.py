@@ -15,23 +15,39 @@ from log import logger
 
 
 def get_remote_ET_result(et_sess: ExtractTable, file_path, pages):
+    t0 = time.time()
     logger.info("ET.com - worker started %s, %s\n%s", file_path, pages, time.time())
-    return et_sess.process_file(
+    server_res = et_sess.process_file(
         filepath=file_path,
         output_format="dict",
         pages=",".join(map(str, pages)),
     )
+    logger.info(
+        "ET.com - worker finished %s, %s\ntook %ss", file_path, pages, time.time() - t0
+    )
+    return server_res
 
 
 pickled_camelot = pickle.dumps(camelot.read_pdf)
 
 
 def camelot_extraction(pickled_read_pdf, fixed_options, options):
+    t0 = time.time()
     unpickled_read_pdf = pickle.loads(pickled_read_pdf)
     logger.info(
-        "camelot_extraction by worker %s %s\n%s", fixed_options, options, time.time()
+        "camelot_extraction by worker %s %s\n%s",
+        fixed_options,
+        options,
+        time.gmtime(time.time()),
     )
-    return (options, unpickled_read_pdf(**fixed_options, **options))
+    proc_res = unpickled_read_pdf(**fixed_options, **options)
+    logger.info(
+        "camelot_extraction by worker done %s %s\ntook %ss",
+        fixed_options,
+        options,
+        time.time() - t0,
+    )
+    return (options, proc_res)
 
 
 class AbstractExtractor(abc.ABC):
@@ -110,6 +126,7 @@ class ExtractTableExtractor(AbstractExtractor):
     def read_cache_write_intermediate_tables(
         self, report: CbCReport, jobs: list[futures.Future] | None
     ) -> list[pd.DataFrame]:
+        logger.info("read_cache_write_intermediate_tables ET %s", report)
         self.write_cache(report, jobs)
         # 2d. read the result from ExtractTable.com and write the tables to the intermediate_files directory.
         with open(
@@ -137,7 +154,6 @@ class ExtractTableExtractor(AbstractExtractor):
             )
             dfs.append(df)
         return dfs
-
 
 class CamelotExtractor(AbstractExtractor):
     def __init__(
@@ -210,6 +226,7 @@ class CamelotExtractor(AbstractExtractor):
         self, report: CbCReport, jobs: list[futures.Future] | None
     ) -> list[pd.DataFrame]:
         """writes the CSV tables to intermediate files, so that can be used by the operator. If cached results available, they will be used."""
+        logger.info("read_cache_write_intermediate_tables CAMELOT %s", report)
         self.write_cache(report, jobs)
         with open(
             os.path.join(

@@ -84,6 +84,40 @@
             "profit loss before tax us": {
                 "sink": "profit_before_tax",
                 "justification": "<no justification>"
+            },
+            "number of employees number": {
+                "sink": "employees",
+                "justification": "<no justification>"
+            },
+            "income tax accrued current year": {
+                "sink": "tax_accrued",
+                "justification": "<no justification>"
+            },
+            "profit loss before income tax": {
+                "sink": "profit_before_tax",
+                "justification": "<no justification>"
+            },
+            "income tax paid on cash basis": {
+                "sink": "tax_paid",
+                "justification": "<no justification>"
+            },
+            "profits or losses before income taxes": {
+                "sink": "profit_before_tax",
+                "justification": "<no justification>"
+            }
+        },
+        "buzzi unicem": {
+            "default": {
+                "undistributed profits": "accumulated_earnings",
+                "total": "total_revenues",
+                "unrelated party": {
+                    "sink": "unrelated_revenues",
+                    "justification": "<no justification>"
+                },
+                "related party": {
+                    "sink": "related_revenues",
+                    "justification": "<no justification>"
+                }
             }
         },
         "bp": {
@@ -214,6 +248,16 @@
                     "sink": "north africa region",
                     "justification": "<no justification>"
                 }
+            }
+        },
+        "eni": {
+            "default": {
+                "_regex_(europe)|(africa)|(asia and oceania)|(americas)": "delete_row"
+            }
+        },
+        "buzzi unicem": {
+            "2020": {
+                "algery": "DZA"
             }
         }
     }

@@ -1,4 +1,23 @@
 {
+    "acciona": {
+        "2020.12.31": {
+            "columns_to_flip": [],
+            "unit": "1000000",
+            "currency": "EUR",
+            "pages": [
+                1
+            ],
+            "filename": "extracts/.2020_Acciona_CbCR_1.pdf",
+            "to_extract": "yes"
+        },
+        "default": {
+            "sector": "Construction",
+            "parent_jurisdiction": "ESP",
+            "parent_entity_name": "ACCIONA SA",
+            "nace2_main": "F - Construction",
+            "nace2_core_code": "4120"
+        }
+    },
     "bhp": {
         "2020.06.30": {
             "columns_to_flip": [],
@@ -80,6 +99,46 @@
             "parent_entity_name": "NEWMONT CORPORATION",
             "nace2_main": "C - Manufacturing",
             "nace2_core_code": "2441"
+        }
+    },
+    "buzzi unicem": {
+        "2020": {
+            "pages": [
+                98,
+                99
+            ],
+            "filename": "2020_buzziunicem_CbCR_98-99.pdf",
+            "to_extract": "yes"
+        },
+        "default": {
+            "sector": "Leather, Stone, Clay & Glass products",
+            "parent_jurisdiction": "ITA",
+            "unit": "1",
+            "currency": "EUR",
+            "columns_to_flip": [],
+            "parent_entity_name": "BUZZI UNICEM S.P.A.",
+            "nace2_main": "C - Manufacturing",
+            "nace2_core_code": "2351"
+        }
+    },
+    "eni": {
+        "2018": {
+            "columns_to_flip": [],
+            "unit": "1000",
+            "currency": "EUR",
+            "pages": [
+                12,
+                13
+            ],
+            "filename": "2018_ENI_CbCR_12_13.pdf",
+            "to_extract": "yes"
+        },
+        "default": {
+            "sector": "Mining & Extraction",
+            "parent_jurisdiction": "ITA",
+            "parent_entity_name": "ENI S.P.A.",
+            "nace2_main": "B - Mining and quarrying",
+            "nace2_core_code": "0610"
         }
     }
 }

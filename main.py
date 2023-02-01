@@ -1,6 +1,5 @@
 # to be ran from the extraction directory
 import argparse
-import asyncio
 import csv
 import os
 import shutil
@@ -9,17 +8,15 @@ from datetime import datetime
 from os.path import exists
 
 import pandas as pd
-
 from cbc_report import CbCReport, get_reports_from_metadata
 from log import logger
 from rules import Rules
 from table_extraction import get_DataFrames
 from table_standardize import standardize_dataframe, unify_CbCR_tables
 
-executor = futures.ProcessPoolExecutor()
-
 
 def extract_one(
+    executor,
     report,
     rules,
     input_pdf_directory,
@@ -69,7 +66,7 @@ def extract_one(
         return report, False, None
 
 
-async def extract_all_reports(
+def extract_all_reports(
     reports: list[CbCReport],
     rules: Rules,
     input_pdf_directory,
@@ -95,10 +92,10 @@ async def extract_all_reports(
         os.makedirs(write_tables_to_dir)
     not_extracted = set(reports)
     # only extract when there is an explicit yes
-    with futures.ThreadPoolExecutor() as t_executor:
-        to_do = [
-            t_executor.submit(
-                extract_one,
+    with futures.ProcessPoolExecutor(max_workers=4) as executor:
+        for report in [r for r in reports if r.to_extract][:default_max_reports]:
+            report, success, df = extract_one(
+                executor,
                 report,
                 rules,
                 input_pdf_directory,
@@ -107,11 +104,6 @@ async def extract_all_reports(
                 write_tables_to_dir,
                 human_bored,
             )
-            for report in reports[:default_max_reports]
-            if report.to_extract
-        ]
-        for res in futures.as_completed(to_do):
-            report, success, df = res.result()
             if success:
                 not_extracted.remove(report)
                 # 5. export the final, standardized dataframe to CSV.
@@ -131,13 +123,13 @@ async def extract_all_reports(
     return not_extracted
 
 
-async def main():
+def main():
 
     init_time = datetime.now()
     rules = Rules(args.rules)
     for directory in [args.intermediate_files_dir, args.write_tables_to_dir]:
         os.makedirs(directory, exist_ok=True)
-    not_extracted = await extract_all_reports(
+    not_extracted = extract_all_reports(
         get_reports_from_metadata(args.metadata),
         rules,
         default_max_reports=1000,
@@ -216,4 +208,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    asyncio.run(main())
+    main()
