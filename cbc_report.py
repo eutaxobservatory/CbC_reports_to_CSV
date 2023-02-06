@@ -54,7 +54,8 @@ class CbCReport:
             return 2
 
 
-def get_reports_from_metadata(metadata_path) -> list[CbCReport]:
+def get_reports_from_metadata(metadata_path : str) -> list[CbCReport]:
+    """"Reads the metadata.json file and returns a list of CbCReport objects."""
     reports = []
     with open(metadata_path, mode='r') as infile:
         all_metadata = json.load(infile)

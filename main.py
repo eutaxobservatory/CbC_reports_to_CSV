@@ -13,6 +13,7 @@ from log import logger
 from rules import Rules
 from table_extraction import get_DataFrames
 from table_standardize import standardize_dataframe, unify_CbCR_tables
+from exceptions import NoCbCReportFound, IncompatibleTables, StandardizationError
 
 
 def extract_one(
@@ -23,7 +24,7 @@ def extract_one(
     intervened_dir,
     intermediate_files_dir,
     write_tables_to_dir,
-    human_bored,
+    no_operator_intervention,
 ) -> pd.DataFrame:
     if exists(
         os.path.join(
@@ -47,7 +48,6 @@ def extract_one(
                 report,
                 input_pdf_directory,
                 executor=executor,
-                cache=True,
                 intermediate_files_dir=intermediate_files_dir,
             )
         else:
@@ -59,9 +59,9 @@ def extract_one(
         # 4. use the rules from `rules.json` (or another specified file!) to make column names and jurisdiction codes standard.
         # For jurisdiction/column names that cannot be resolved with the current rules, get input from the operator is human_bored == False.
         # As the operator can become bored during a report, update the value of human_bored for the remaining documents (only goes from not bored to bored.)
-        human_bored = standardize_dataframe(human_bored, unified_df, report, rules)
+        no_operator_intervention = standardize_dataframe(no_operator_intervention, unified_df, report, rules)
         return report, True, unified_df
-    except Exception as exception:
+    except (IncompatibleTables, NoCbCReportFound, FileNotFoundError, StandardizationError) as exception:
         logger.error("Fatal error on %s :\n%s\n\n", report, exception, exc_info=True)
         return report, False, None
 
@@ -75,18 +75,15 @@ def extract_all_reports(
     write_tables_to_dir,
     default_max_reports=100,
     force_rewrite=False,
-    quiet_mode=False,
+    no_operator_intervention=False,
+    quiet=False,
 ):
-    """May update the rules during execution (Rules object gets updated in-place).
-    Extracted files will be named '<mnc_id>_<end_of_year>.csv' and be on the specified directory <write_tables_to>.
-    (Above, extracted means the complete pipeline from pdf to standardized, unique CSV file per report.)
+    """Attempts to create a unique and standardized CSV file for each reports from the metadata file, using the rules file, the pdf repository and the CSV files that have been manually edited. Extracted files will be named '<mnc_id>_<end_of_year>.csv' and be on the specified directory <write_tables_to_dir>. May update the rules during execution (Rules object gets updated in-place).
+
     Temporary files will be inside the respective '/extraction/intermediate_files/<mnc_id>_<end_of_year>/' folder, relative to root of the repo.
     They will be named '<mnc_id>_<end_of_year>_<table_number>.csv'."""
-    # if quiet_mode, make extraction of each report concurrent (in parallel) (TODO)
-
-    # else, make extraction of each report sequential (below)
-    # in any case, make the extractions concurrent within each report (TODO)
-    human_bored = quiet_mode
+    for directory in [args.intermediate_files_dir, args.write_tables_to_dir]:
+        os.makedirs(directory, exist_ok=True)
     if force_rewrite:
         shutil.rmtree(write_tables_to_dir)
         os.makedirs(write_tables_to_dir)
@@ -102,10 +99,9 @@ def extract_all_reports(
                 intervened_dir,
                 intermediate_files_dir,
                 write_tables_to_dir,
-                human_bored,
+                no_operator_intervention,
             )
-            if success:
-                not_extracted.remove(report)
+            if success: # either because the reports has just been extracted, or because it was already extracted.
                 # 5. export the final, standardized dataframe to CSV.
                 if df is not None:
                     df.to_csv(
@@ -116,29 +112,32 @@ def extract_all_reports(
                         index=False,
                         quoting=csv.QUOTE_NONNUMERIC,
                     )
-                    print(f"{report} successfully extracted.\n")
+                    msg = f"{report} successfully extracted.\n"
+                not_extracted.remove(report)
             else:
-                print(f"{report} failed to extract.\n")
+                msg = f"{report} failed to extract.\n"
+            if not quiet:
+                print(msg)
 
     return not_extracted
 
 
 def main():
-
+    """Extracts all reports from the metadata file, using the rules file, the pdf repository and the CSV files that have been manually edited."""
     init_time = datetime.now()
     rules = Rules(args.rules)
-    for directory in [args.intermediate_files_dir, args.write_tables_to_dir]:
-        os.makedirs(directory, exist_ok=True)
+
     not_extracted = extract_all_reports(
         get_reports_from_metadata(args.metadata),
         rules,
         default_max_reports=1000,
         force_rewrite=args.force_rewrite,
-        quiet_mode=args.quiet,
+        no_operator_intervention=args.no_operator_intervention,
         input_pdf_directory=args.input_pdf_dir,
         intervened_dir=args.after_intervention_dir,
         intermediate_files_dir=args.intermediate_files_dir,
         write_tables_to_dir=args.write_tables_to_dir,
+        quiet=args.quiet,
     )
 
     rules.write(args.rules)
@@ -164,7 +163,12 @@ if __name__ == "__main__":
         "-q",
         "--quiet",
         action="store_true",
-        help="do not prompt the user whenever column or jurisdiction names are not standard. Non-standard names will have a trailing '_tocheck' flag.",
+        help="do not print any intermediate results - only upon trying to extract all files. Useful for extracting multiple reports in concurrently.",
+    )
+    parser.add_argument(
+        "--no-operator-intervention",
+        action="store_true",
+        help="do not prompt the operator whenever column or jurisdiction names are not standard. Non-standard names will have a trailing '_tocheck' flag.",
     )
     parser.add_argument(
         "-i",

@@ -10,7 +10,7 @@ from cbc_report import get_reports_from_metadata
 from log import logger
 from rules import Rules
 from table_standardize import standardize_jurisdiction_names
-from utils import trim_rows_cols
+from utils import trim_dataframe
 
 
 def concatenate_tables(argv):
@@ -54,7 +54,7 @@ def concatenate_tables(argv):
                     dtype={"parent_entity_nace2_core_code": "str"},
                 )
                 standardize_jurisdiction_names(dataframe, report, rules)
-                trim_rows_cols(dataframe)
+                trim_dataframe(dataframe)
                 cumulative_df.append(dataframe)
             except Exception as exception:
                 logger.error(exception)

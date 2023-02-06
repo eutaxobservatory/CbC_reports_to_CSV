@@ -284,13 +284,9 @@ def get_DataFrames(
     report: CbCReport,
     pdf_repo_path,
     executor: futures.ProcessPoolExecutor,
-    intermediate_files_dir="intermediate_files/",
-    cache=True,
+    intermediate_files_dir="intermediate_files",
 ) -> list[pd.DataFrame]:
-    """
-    Returns results from ET. Extracts with both ET and camelot results into the write_directory.
-    """
-    # TODO option without cache
+    """Returns tables from ExtractTable.com. Both camelot-py and ExtractTable.com CSV files are written to the intermediate_files_dir so that they can be edited by the operator in case automatic standardization is not possible."""
 
     et_extractor = ExtractTableExtractor(
         pdf_repo_path, intermediate_files_dir, executor

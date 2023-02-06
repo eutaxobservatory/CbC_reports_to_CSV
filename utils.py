@@ -5,7 +5,6 @@ from os.path import join
 
 import pandas as pd
 import pycountry
-from cbc_report import CbCReport
 from log import logger
 
 pd.set_option("display.max_columns", None)
@@ -33,7 +32,7 @@ PERCENTAGE_FORMAT_RE = re.compile(r"(\d+[.,]?\d*)\w?%")
 ETR_FORMAT_RE = re.compile(r"(-?\d+[\.]?\d*)")
 ENGLISH_COLUMN_TERMS = [
     "tax",
-    r"\wrelated",
+    "related",
     "income",
     "employee",
     "unrelated",
@@ -47,7 +46,7 @@ ENGLISH_COLUMN_TERMS = [
     "revenue",
 ]
 ITALIAN_COLUMN_TERMS = ["imposte", "pagate", "reddito", "utile"]
-COMPILED_CBCR_TERMS = list(map(re.compile, ENGLISH_COLUMN_TERMS + ITALIAN_COLUMN_TERMS))
+CBCR_TERMS = ENGLISH_COLUMN_TERMS + ITALIAN_COLUMN_TERMS
 YEAR_REGEX = re.compile(r"^\d{4}$")
 DOUBLE_DIGITS = re.compile(r"\d{2}")
 
@@ -59,7 +58,7 @@ def partition(pred, iterable):
     return filterfalse(pred, t1), filter(pred, t2)
 
 
-def auto_jurisdiction_to_iso3166(z):
+def jurisdiction_to_iso3166(z):
     x = neatify(z)
     if x.upper() in ISO3166_ALPHA3:
         return x.upper()
@@ -77,6 +76,8 @@ def auto_jurisdiction_to_iso3166(z):
 
 
 def neatify(arg):
+
+    """Returns a string with all non-[ascii-alphanumeric] characters removed, and all words lowercased."""
     return " ".join(
         STAND_ALONE_CHAR_RE.sub(
             " ", CHARS_TO_PURGE_FROM_COLUMN_NAMES_RE.sub(" ", arg)
@@ -84,53 +85,7 @@ def neatify(arg):
     ).casefold()
 
 
-def orient_tables(dfs, report: CbCReport):
-    """
-    may transpose
-    """
-
-    def is_transposed(df: pd.DataFrame, report: CbCReport) -> bool:
-        for _, values in df.items():
-            # logger.debug(f"is_transposed\n{values}")
-            if count_countries(values) >= report.min_nb_jurs_per_table:
-                return False
-        for _, values in df.iterrows():
-            if count_CbCR_terms(values.to_string()) >= report.min_nb_cols:
-                return False
-            if count_countries(values) >= report.min_nb_jurs_per_table:
-                return True
-        raise ValueError("\nCan't tell whether transposed.\n")
-
-    if is_transposed(dfs[0], report):
-        logger.info("TRANSPOSing!")
-        return list(map(pd.DataFrame.transpose, dfs))
-    else:
-        logger.info("no transposition.")
-        return dfs
-
-
-def count_countries(series: pd.Series) -> int:
-    """ """
-    total = 0
-    for cell in series:
-        n = neatify(cell)
-        if (
-            CONTRY_TO_ISO3166_MAPPING.get(neatify(cell), "")
-            or n.upper() in ISO3166_ALPHA3
-            or n.upper() in ["AFRICA", "EUROPE", "AMERICA", "ASIA", "NORTH AMERICA"]
-        ):
-            total += 1
-    return total
-
-
-def count_CbCR_terms(s: str) -> int:
-    matches = 0
-    for term in COMPILED_CBCR_TERMS:
-        matches += 1 if term.search(s) else 0
-    return matches
-
-
-def trim_rows_cols(df: pd.DataFrame):
+def trim_dataframe(df: pd.DataFrame):
     """
     in-place trim columns "to_drop" and rows "delete_row"
     """

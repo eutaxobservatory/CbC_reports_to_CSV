@@ -9,7 +9,7 @@ A central requirement for the code is that country names and variables must be m
 
 # How to use this software
 ## Requirements
-To run this software (and, in particular, the test) you will need python 3.9 or higher, an API key for extracttable.com (which should be placed in a file named `.et_key`) and the python libraries specified in `requirements.txt`. Ten free API credits for extracttable.com can be requested [here](https://www.extracttable.com/signup/trial.html).
+To run this software (and, in particular, the test) you will need python 3.10, an API key for extracttable.com (which should be placed in a file named `.et_key`) and the python libraries specified in `requirements.txt`. Ten free API credits for extracttable.com can be requested [here](https://www.extracttable.com/signup/trial.html).
 
 The entry point is 'main.py'. This script allows for multiple options to be set - too see them, run `python3 main.py -h`.
 

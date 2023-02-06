@@ -10,3 +10,4 @@ camelot/**
 **/.*
 !.gitignore
 /local_archieve/**
+path_set_up.py

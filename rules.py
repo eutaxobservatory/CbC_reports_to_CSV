@@ -6,8 +6,8 @@ from utils import partition
 
 
 class Rules:
+    """Class representing all the rules for the extraction of (usually) multiple CbC reports. Rules exist along 2 axes: rules for column names vs for jurisdiction codes; regex rules vs strict rules. When prompted due to unknown name, the operator sets the scope of a rule being created: it may apply to all reports, to all reports of a given MNC, or to a given report. This handles queries to the rules (of the form "given this CbCR report and the source, what is the applicable sink?"), and can write the rules to a file."""
     def __init__(self, rules_file):
-        """takes path as argument - reads from file"""
         with open(rules_file, mode="r") as infile:
             self._all = json.load(infile)
             self._column = self._all["column_rules"]
@@ -133,7 +133,8 @@ class Rules:
                 except KeyError:
                     rule_set[company] = {year: {source: pair}}
 
-    def export_justifications_to_csv(self, path):
+    def export_justifications_to_csv(self, path : str) -> None:
+        """Exports all justifications to a csv file. These are collected from the rules.json file - which is automatically updated when the operator is prompted due to unknown column or jurisdiction names."""
         def extract_objects(json_obj, keys=None, level=0):
             out = []
             if not keys:
