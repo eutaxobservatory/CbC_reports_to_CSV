@@ -1,11 +1,25 @@
 import json
+from exceptions import MetadataError
 
 
 class CbCReport:
+    """Represents a Country-by-Country report to be extracted. It is comprised of metadata information to be used during the extraction process, such as the name of the group, the end of the reporting period, the base units used in the report, the currency, the parent entity name, the NACE2 main code, the NACE2 core code, the columns to flip, the BVD sector, the parent jurisdiction, and the pages where the tables are located. It also contains the filename of the source PDF file."""
     def __init__(self, group_name, end_of_year, metadata: dict) -> None:
-        self.group_name = group_name
-        self.end_of_year = end_of_year
-        self.metadata = metadata
+        try:
+            self.group_name = group_name
+            self.end_of_year = end_of_year
+            self.metadata = metadata
+            if self.to_extract:
+                self.unit_multiplier = int(metadata.get("unit"))
+                self.currency = metadata.get("currency")
+                self.parent_entity_name = metadata.get("parent_entity_name", None)
+                self.nace2_main = metadata.get("nace2_main", None)
+                self.nace2_core_code = metadata.get("nace2_core_code", None)
+                self.columns_to_flip = self.metadata.get('columns_to_flip', None)
+                self.bvd_sector = self.metadata.get('sector', None)
+                self.parent_jurisdiction = self.metadata.get('parent_jurisdiction', None)
+        except KeyError as exc:
+            raise MetadataError(f"Missing metadata for {self} : {exc}") from exc
 
     def __str__(self) -> str:
         return f"CbCReport(group_name = {self.group_name},end_of_period = {self.end_of_year}, to_extract = {self.to_extract})"
@@ -23,14 +37,14 @@ class CbCReport:
     def pages(self):
         try:
             return self.metadata.get('pages')
-        except KeyError:
-            raise AttributeError(f"{self} has no `pages` metadata.")
+        except KeyError as exc:
+            raise MetadataError(f"{self} has no `pages` metadata.") from exc
     @property
     def filename_of_source(self):
         try:
             return self.metadata.get('filename')
-        except KeyError:
-            raise AttributeError(f"{self} has no `filename` metadata.")
+        except KeyError as exc:
+            raise MetadataError(f"{self} has no `filename` metadata.") from exc
     
     @property
     def min_nb_cols(self):

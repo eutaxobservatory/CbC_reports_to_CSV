@@ -21,13 +21,20 @@ from utils import (
     YEAR_REGEX,
     jurisdiction_to_iso3166,
     neatify,
-    trim_dataframe,
 )
 
-def standardize_jurisdiction_names(
-    df: pd.DataFrame, report: CbCReport, rules: Rules
-) -> None:
-    """In-place."""
+
+def trim_dataframe(df: pd.DataFrame):
+    """Delete (in-place) columns and rows marked for deletion by "apply_rules" or "get_new_rules_from_operator"."""
+    df.drop(df[df.jurisdiction == "delete_row"].index, inplace=True)
+
+    for name, _ in df.items():
+        if bool(re.search("to_drop", str(name))):
+            df.drop(name, axis=1, inplace=True)
+
+
+def apply_rules_to_rows(df: pd.DataFrame, report: CbCReport, rules: Rules) -> None:
+    """In-place. Applies strict rules, then regex rules and allows ISO3166-1 alpha-3 codes. Otherwise the jurisdiction name is appended with `_tocheck`"""
     try:
         df.jurisdiction = df.jurisdiction.apply(jurisdiction_to_iso3166)
     except AttributeError as exc:
@@ -41,11 +48,10 @@ def standardize_jurisdiction_names(
             sink = rules.get_sink_from_regex(report, jur_name, "j")
             if sink:
                 old_new_correspondence[jur_name] = sink
-        if not re.match(r"^[A-Z]{3}$", jur_name) and not sink:
+        if (jur_name not in ISO3166_ALPHA3) and not sink:
             old_new_correspondence[jur_name] = f"{jur_name}_tocheck"
-    df.jurisdiction = df["jurisdiction"].map(
-        lambda x: old_new_correspondence.get(x, x)
-    )
+    df.jurisdiction = df["jurisdiction"].map(lambda x: old_new_correspondence.get(x, x))
+
 
 def count_countries(
     smtg: str | pd.Series | pd.DataFrame, include_continents=False, stop_at=None
@@ -215,27 +221,16 @@ def unify_CbCR_tables(dfs: list[pd.DataFrame], report: CbCReport) -> pd.DataFram
 
 
 def standardize_dataframe(
-    no_operator_intervention: bool, df: pd.DataFrame, report: CbCReport, rules: Rules
-) -> None:
-    """in-place function that makes column and jurisdictions standard (jurisdictions according to ISO3166) and add metadata to the CSV tables (company name, time interval covered, company's sectors and HQ country, etc.).
-
+    operator_wont_intervene: bool, df: pd.DataFrame, report: CbCReport, rules: Rules
+) -> bool:
+    """Standardizes the DataFrame in-place. Makes column names and jurisdiction codes standard (jurisdictions according to ISO3166) and adds metadata to the DataFrames (company name, time interval covered, company's sectors and HQ country, etc.). Returns a flag indicating whether the operator may be further prompted to intervene.
     When standardization requires the operator's input, the function blocks and prompts the user."""
 
-    def standardize_colnames(df: pd.DataFrame, report: CbCReport, rules: Rules):
-        """
-        Tries to standardize names of the columns. Works in-place.
-        Assumes unique col names (from untangle_df_head). - apart from 'to_drop', which will be dropped.
-        does not immediately pop useless columns as that can only be done after table concatenation!
-
-        In general it may be the case that multiple Index-items are the same in the columns Index -
-        - eg. multiple are the empty string -, which means care is needed when concatenating the DataFrames.
-        """
+    def apply_rules_to_columns(df: pd.DataFrame, report: CbCReport, rules: Rules):
+        """Tries to standardize names of the columns. Works in-place."""
         # jurisdiction will be automatically assigned so no problem with calling df.jurisdiction before user's intervention
-        def find_jurisdiction_location():
-            """
-            name country-filled col and put it in pos 0.
-            errors on columns with duplicated names - including empty!
-            """
+        def find_jurisdiction_location() -> int:
+            """finds index of column with jurisdictions. Raises an error if there are multiple columns with jurisdictions or if there are no columns with jurisdictions."""
             pos = -1
             for i, (_, values) in enumerate(df.items()):
                 if (
@@ -254,31 +249,18 @@ def standardize_dataframe(
             else:
                 return pos
 
-        def check_colnames(column_names: pd.Index):
-            """
-            sanity check on column names - no NA nor repetitions and at least a character. Throws ValueError exception if not.
-            """
-            logger.debug([str(s) for s in column_names])
-            # check all cols are named appropriately
-            is_neat = map(lambda x: bool(re.search(r"[a-zA-z]", str(x))), column_names)
-
-            if (column_names.nunique(dropna=True) != column_names.size) | (
-                not all(is_neat)
-            ):
-                raise StandardizationError(
-                    f"Senseless name(s) for column(s) of first table. Fix before continuing.\n{column_names}"
-                )
-
         columns_to_be = []
         std_colnames_from_rules = rules.get_std_colnames_from_rules()
         column_names = df.columns
-
-        for i, column_name in enumerate(column_names):
+        for i, column_name in enumerate(
+            column_names
+        ):  # enumerate so that we can distinguish between columns with the same name (e.g. empty string)
+            # 1st priority: a strict rule that applies to the column name
             std_name = rules.get_sink_from_strict(report, column_name, "c")
-            if not std_name and not column_name:
-                std_name = "to_drop"
-            if (not std_name) and (column_name in std_colnames_from_rules):
-                std_name = column_name
+            # 2nd priority: an already std column name
+            if (not std_name) and (column_name.lower() in std_colnames_from_rules):
+                std_name = column_name.lower()
+            # 3rd priority: a regex rule that applies to the column name
             if not std_name:
                 std_name = rules.get_sink_from_regex(report, column_name, "c")
 
@@ -288,28 +270,50 @@ def standardize_dataframe(
             elif std_name:
                 columns_to_be.append(f"{std_name}")
             else:
-                columns_to_be.append(f"{column_name}_{i}_tocheck")
-        # check jurisdiction
+                if column_name:
+                    columns_to_be.append(f"{column_name}_{i}_tocheck")
+                else:
+                    columns_to_be.append(
+                        ""
+                    )  # use empty string as poison pill for checking column names below. error not yet thrown as might be the jurisdiction column
+        # check existence of a jurisdiction column
         if "jurisdiction" not in columns_to_be:
             i = find_jurisdiction_location()
             columns_to_be[i] = "jurisdiction"
-        if pd.Index(columns_to_be).nunique(dropna=True) != df.columns.size:
-            raise StandardizationError("Same column name in different columns.")
-        check_colnames(pd.Index(columns_to_be))
+        # check no repetitions in nor empty in the to be column names
+        if (
+            pd.Index(columns_to_be).drop("", errors="ignore").nunique(dropna=True)
+            != df.columns.size
+        ):
+            raise StandardizationError(
+                "Same column name assigned to different columns or empty column name."
+            )
         df.columns = pd.Index(columns_to_be)
 
     def get_new_rules_from_operator(
         df,
-        non_standard_column_names,
-        non_standard_jurisdictions,
         report: CbCReport,
         rules: Rules,
     ):
-        """gets operator to intervene. alters dataframe and rules in-place.
-        Attention to this play with _tocheck with "get_non_standard_cols" and "standardize_colnames"."""
-        company = report.group_name
-        year = report.end_of_year
-        mnc_id__year = f"{company}_{year}"
+        """gets operator to assign values to unknown column and row identifiers. Alters the DataFrame and updates the rules in-place.
+        Closely related to "apply_rules_to_columns" and "apply_rules_to_rows"."""
+
+        def get_non_standard_cols(df: pd.DataFrame):
+            """
+            heavy lifting is done by standardize_colnames.
+            """
+            ns_colnames = set(
+                filter(lambda x: bool(re.search(r"_tocheck$", str(x))), df.columns)
+            )
+            logger.info("NUMBER OF NON STD COLS> %s", len(ns_colnames))
+            return ns_colnames
+
+        def get_non_standard_jurisdiction(df: pd.DataFrame):
+            # negative lookahead to extract names that are not 3 letter codes
+            a = df["jurisdiction"].str.extractall(
+                r"^(?P<found_jurisdiction>.*)_tocheck$"
+            )["found_jurisdiction"]
+            return pd.Series(a).to_list()
 
         def apply_subs(df: pd.DataFrame, col_subs, jur_subs) -> pd.DataFrame:
             """In place!
@@ -404,7 +408,7 @@ def standardize_dataframe(
         human_bored = False
         col_subs = {}
         jur_subs = {}
-        for source_appended in non_standard_column_names:
+        for source_appended in get_non_standard_cols(df):
             source = re.match(r"(.*)_\d{0,2}_tocheck$", source_appended).group(1)
             col_dict = dict(
                 (nb, name)
@@ -412,7 +416,9 @@ def standardize_dataframe(
                     ["to_drop", source] + rules.get_std_colnames_from_rules()
                 )
             )
-            prompt_text = prompt_text_col(source, mnc_id__year, col_dict)
+            prompt_text = prompt_text_col(
+                source, f"{report.group_name}_{report.end_of_year}", col_dict
+            )
             mode, sink, justification = prompt_common(source, col_dict, prompt_text)
             rules.write_new_rule(source, mode, sink, justification, "c", report)
             if sink == "quit":
@@ -421,13 +427,13 @@ def standardize_dataframe(
             else:
                 col_subs[source_appended] = sink
 
-        for source in non_standard_jurisdictions:
+        for source in get_non_standard_jurisdiction(df):
             jurisdiction_dict = dict(
                 (option, name)
                 for option, name in enumerate([source, "delete_row", "other"])
             )
             prompt_text = prompt_text_jurisdiction(
-                source, mnc_id__year, jurisdiction_dict
+                source, f"{report.group_name}_{report.end_of_year}", jurisdiction_dict
             )
             mode, sink, justification = prompt_common(
                 source, jurisdiction_dict, prompt_text
@@ -442,25 +448,10 @@ def standardize_dataframe(
         apply_subs(df, col_subs, jur_subs)
         return human_bored
 
+    def tidy_data(df: pd.DataFrame, report: CbCReport) -> None:
+        """Trasforms DataFrame in-place as to get data in tidy format. Cleans cells and ensures values are in units.
+        Adds report metadata (multinational's name, time-frame, sectoral info, currency, etc.)."""
 
-    def get_non_standard_cols(df: pd.DataFrame):
-        """
-        heavy lifting is done by standardize_colnames.
-        """
-        ns_colnames = set(
-            filter(lambda x: bool(re.search(r"_tocheck$", str(x))), df.columns)
-        )
-        logger.info("NUMBER OF NON STD COLS> %s", len(ns_colnames))
-        return ns_colnames
-
-    def get_non_standard_jurisdiction(df: pd.DataFrame):
-        # negative lookahead to extract names that are not 3 letter codes
-        a = df["jurisdiction"].str.extractall(r"^(?P<found_jurisdiction>.*)_tocheck$")[
-            "found_jurisdiction"
-        ]
-        return pd.Series(a).to_list()
-
-    def tidy_data(df: pd.DataFrame, report: CbCReport) -> pd.DataFrame:
         def handle_etr(df: pd.DataFrame):
             def percentage_to_rational(x):
                 return float(
@@ -569,10 +560,7 @@ def standardize_dataframe(
             df[newdf.columns] = newdf
             logger.debug(df)
 
-        metadata_in_effect = report.metadata
         cell_basic_conversion(df)
-        logger.debug("POST CELL")
-        logger.debug(df)
         handle_etr(df)
         handle_percentages(df)
         cols = df.columns.drop(
@@ -586,38 +574,22 @@ def standardize_dataframe(
             errors="ignore",
         )
         df[cols] = df[cols].apply(pd.to_numeric, errors="coerce")
-        try:
-            unit = metadata_in_effect.get("unit")
-            cur = metadata_in_effect.get("currency")
-            parent_entity_name = metadata_in_effect.get("parent_entity_name")
-            nace2_main = metadata_in_effect.get("nace2_main")
-            nace2_core_code = metadata_in_effect.get("nace2_core_code")
 
-        except Exception as exc:
-            raise KeyError(f"Fatally incomplete metadata.\n{str(exc)}") from exc
-        hq = metadata_in_effect.get("parent_jurisdiction", "")
-        sector = metadata_in_effect.get("sector", "")
-        # try:
-        #     df.loc[metadata_in_effect.get('columns_to_flip')].apply(lambda x: -1 * x)
-        # except KeyError as e:
-        #         logger.warn(
-        #             f"No {column_name} column found but present in metadata file.")
-
-        for column_name in metadata_in_effect.get("columns_to_flip"):
+        for column_name in report.columns_to_flip:
             try:
                 df[column_name] = df[column_name].apply(lambda x: -1 * x)
-            except KeyError:
-                logger.warning(
-                    "No %s column found but present in metadata file.", column_name
-                )
+            except KeyError as exc:
+                raise StandardizationError(
+                    f"No {column_name} column found but present in metadata file."
+                ) from exc
 
         numerics = ["int16", "int32", "int64", "float16", "float32", "float64"]
         df_to_multiply = df.select_dtypes(include=numerics).drop(
             ["employees", "effective_tax_rate"], axis="columns", errors="ignore"
         )
-        df[df_to_multiply.columns] = df_to_multiply.applymap(lambda x: int(unit) * x)
+        df[df_to_multiply.columns] = df_to_multiply.applymap(lambda x: report.unit_multiplier * x)
         # df.sort_index(axis=1, inplace=True)
-        df.insert(0, "currency", np.repeat(cur, len(df)))
+        df.insert(0, "currency", np.repeat(report.currency, len(df)))
         # retrofit years as end_of_year (legacy metadata may just show `2020` instead of `2020.12.31`).
         end_of_year = (
             report.end_of_year + ".12.31"
@@ -627,23 +599,23 @@ def standardize_dataframe(
         df.insert(
             1,
             "multiplier_to_euro",
-            np.repeat(float(EXCHANGE_RATES[(cur, end_of_year)]), len(df)),
+            np.repeat(float(EXCHANGE_RATES[(report.currency, end_of_year)]), len(df)),
         )
 
-        if hq:
-            df.insert(1, "parent_entity_jurisdiction", np.repeat(hq, len(df)))
-        if sector:
-            df.insert(2, "parent_entity_bvd_sector", np.repeat(sector, len(df)))
-        if nace2_main:
+        if report.parent_jurisdiction:
+            df.insert(1, "parent_entity_jurisdiction", np.repeat(report.parent_jurisdiction, len(df)))
+        if report.bvd_sector:
+            df.insert(2, "parent_entity_bvd_sector", np.repeat(report.bvd_sector, len(df)))
+        if report.nace2_main:
             df.insert(
-                2, "parent_entity_nace2_main", np.repeat(f"{nace2_main}", len(df))
+                2, "parent_entity_nace2_main", np.repeat(f"{report.nace2_main}", len(df))
             )
-        if nace2_core_code:
+        if report.nace2_core_code:
             df.insert(
-                2, "parent_entity_nace2_core_code", np.repeat(nace2_core_code, len(df))
+                2, "parent_entity_nace2_core_code", np.repeat(report.nace2_core_code, len(df))
             )
         df.insert(0, "end_of_year", np.repeat(end_of_year, len(df)))
-        df.insert(0, "parent_entity", np.repeat(str.strip(parent_entity_name), len(df)))
+        df.insert(0, "parent_entity", np.repeat(str.strip(report.parent_entity_name), len(df)))
         df.insert(0, "group_name", np.repeat(report.group_name, len(df)))
         df.drop(  # cleaner database - this was a hot fix, can be improved and dealt with sooner
             [
@@ -658,18 +630,10 @@ def standardize_dataframe(
             inplace=True,
         )
 
-    standardize_colnames(df, report, rules)
-    standardize_jurisdiction_names(df, report, rules)
-    if not no_operator_intervention:
-        no_operator_intervention = get_new_rules_from_operator(
-            df,
-            get_non_standard_cols(df),
-            get_non_standard_jurisdiction(df),
-            report,
-            rules,
-        )
+    apply_rules_to_columns(df, report, rules)
+    apply_rules_to_rows(df, report, rules)
+    if not operator_wont_intervene:
+        operator_wont_intervene = get_new_rules_from_operator(df, report, rules)
     trim_dataframe(df)
-    # before the next step, column names must be made standard as treatment of columns depends on col name.
-    # e.g. applying rules to percentages, coercing columns into numeric values.
     tidy_data(df, report)
-    return no_operator_intervention
+    return operator_wont_intervene

@@ -22,6 +22,7 @@ with open(PATH_EXCHANGE_RATES, mode="r") as infile:  # exchange_rate
 
 
 ISO3166_ALPHA3 = set([i.alpha_3 for i in pycountry.countries])
+ISO3166_ALPHA3.add("XKX")  # Kosovo
 
 # Regexes compilation
 
@@ -83,18 +84,6 @@ def neatify(arg):
             " ", CHARS_TO_PURGE_FROM_COLUMN_NAMES_RE.sub(" ", arg)
         ).split()
     ).casefold()
-
-
-def trim_dataframe(df: pd.DataFrame):
-    """
-    in-place trim columns "to_drop" and rows "delete_row"
-    """
-    # both the "delete_row" and "to_drop" come from the prompt_menu
-    df.drop(df[df.jurisdiction == "delete_row"].index, inplace=True)
-
-    for name, _ in df.items():
-        if bool(re.search("to_drop", str(name))):
-            df.drop(name, axis=1, inplace=True)
 
 
 def my_search_fuzzy(self, query):
