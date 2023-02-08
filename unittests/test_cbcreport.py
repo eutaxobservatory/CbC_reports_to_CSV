@@ -1,3 +1,15 @@
+import os.path
+import sys
+import unittest
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from cbc_report import CbCReport, get_reports_from_metadata
+
+
+class TestCBCReport(unittest.TestCase):
+    def setUp(self):
+        self.reports = get_reports_from_metadata(
+            """
 {
     "acciona": {
         "2020.12.31": {
@@ -11,6 +23,7 @@
             "to_extract": "yes"
         },
         "default": {
+            "currency": "GBP",
             "bvd_sector": "Construction",
             "parent_jurisdiction": "ESP",
             "parent_entity_name": "ACCIONA SA",
@@ -52,7 +65,6 @@
             "to_extract": "yes"
         },
         "default": {
-            "bvd_sector": "Chemicals, Petroleum, Rubber & Plastic",
             "parent_jurisdiction": "GBR",
             "parent_entity_name": "BP PLC",
             "nace2_main": "C - Manufacturing",
@@ -141,4 +153,14 @@
             "nace2_core_code": "0610"
         }
     }
-}
+}"""
+        )
+
+    def test_get_report(self):
+        acciona = self.reports[0]
+        bp = self.reports[2]
+        self.assertEqual(acciona.currency, "EUR")
+        self.assertEqual(acciona.unit_multiplier, 1000000)
+        self.assertEqual(bp.bvd_sector, None)
+        self.assertEqual(acciona.bvd_sector, "Construction")
+

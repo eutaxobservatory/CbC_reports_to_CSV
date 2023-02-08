@@ -16,7 +16,7 @@ class CbCReport:
                 self.nace2_main = metadata.get("nace2_main", None)
                 self.nace2_core_code = metadata.get("nace2_core_code", None)
                 self.columns_to_flip = self.metadata.get('columns_to_flip', None)
-                self.bvd_sector = self.metadata.get('sector', None)
+                self.bvd_sector = self.metadata.get('bvd_sector', None)
                 self.parent_jurisdiction = self.metadata.get('parent_jurisdiction', None)
         except KeyError as exc:
             raise MetadataError(f"Missing metadata for {self} : {exc}") from exc
@@ -68,11 +68,14 @@ class CbCReport:
             return 2
 
 
-def get_reports_from_metadata(metadata_path : str) -> list[CbCReport]:
+def get_reports_from_metadata(metadata : str) -> list[CbCReport]:
     """"Reads the metadata.json file and returns a list of CbCReport objects."""
     reports = []
-    with open(metadata_path, mode='r') as infile:
-        all_metadata = json.load(infile)
+    try:
+        all_metadata = json.loads(metadata)
+    except json.decoder.JSONDecodeError:
+        with open(metadata, mode='r', encoding="utf-8") as infile:
+            all_metadata = json.load(infile)
     for mnc, value in all_metadata.items():
         mnc_all_metadata = dict(value)
         try:

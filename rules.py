@@ -3,16 +3,24 @@ import re
 
 from cbc_report import CbCReport
 from utils import partition
-
+from exceptions import RulesError
 
 class Rules:
     """Class representing all the rules for the extraction of (usually) multiple CbC reports. Rules exist along 2 axes: rules for column names vs for jurisdiction codes; regex rules vs strict rules. When prompted due to unknown name, the operator sets the scope of a rule being created: it may apply to all reports, to all reports of a given MNC, or to a given report. This handles queries to the rules (of the form "given this CbCR report and the source, what is the applicable sink?"), and can write the rules to a file."""
-    def __init__(self, rules_file):
-        with open(rules_file, mode="r") as infile:
-            self._all = json.load(infile)
+    def __init__(self, rules : str):
+        try:
+            try:
+                self._all = json.loads(rules)
+            except json.decoder.JSONDecodeError as exc:
+                print(exc)
+                with open(rules, mode="r") as infile:
+                    self._all = json.load(infile)
             self._column = self._all["column_rules"]
             self._jurisdiction = self._all["jurisdiction_rules"]
-
+        except FileNotFoundError as exc:
+            raise RulesError("Rules file not found") from exc
+        except KeyError as exc:
+            raise RulesError("Rules file malformed") from exc
     @property
     def column(self):
         return self._column

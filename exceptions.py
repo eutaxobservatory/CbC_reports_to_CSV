@@ -6,3 +6,5 @@ class StandardizationError(ValueError):
     pass
 class MetadataError(AttributeError):
     pass
+class RulesError(ValueError):
+    pass
