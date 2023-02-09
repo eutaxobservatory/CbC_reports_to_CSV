@@ -5,11 +5,11 @@ from itertools import filterfalse
 
 import numpy as np
 import pandas as pd
-from cbc_report import CbCReport
-from exceptions import IncompatibleTables, NoCbCReportFound, StandardizationError
-from log import logger
-from rules import Rules
-from utils import (
+from .cbc_report import CbCReport
+from .exceptions import IncompatibleTables, NoCbCReportFound, StandardizationError
+from .log import logger
+from .rules import Rules
+from .utils import (
     CBCR_TERMS,
     CONTRY_TO_ISO3166_MAPPING,
     DOUBLE_DIGITS,

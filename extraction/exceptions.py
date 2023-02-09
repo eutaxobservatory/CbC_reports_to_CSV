@@ -1,3 +1,4 @@
+""" Exceptions for the extraction module. """
 class IncompatibleTables(ValueError):
     pass
 class NoCbCReportFound(ValueError):

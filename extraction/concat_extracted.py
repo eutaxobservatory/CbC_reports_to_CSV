@@ -1,4 +1,4 @@
-# to be ran from the extraction directory
+""" This script concatenates the tables extracted from each report into a single table. It may apply a different set of rules to each table and is particularly useful for allowing less strictness when extracting individual tables and more when concatenating into a single database."""
 import csv
 import getopt
 import os
@@ -6,14 +6,16 @@ import sys
 from os.path import exists, join
 import pandas as pd
 
-from cbc_report import get_reports_from_metadata
-from log import logger
-from rules import Rules
-from table_standardize import apply_rules_to_rows, trim_dataframe
+from .cbc_report import get_reports_from_metadata
+from .exceptions import StandardizationError
+from .log import logger
+from .rules import Rules
+from .standardize_dataframe import apply_rules_to_rows, trim_dataframe
 
+__all__ = ["concatenate_tables"]
 
 def concatenate_tables(argv):
-    """made separate from the extraction of each report so as to allow more flexibility in the 
+    """made separate from the extraction of each report so as to allow more flexibility in the
     extraction of each report and ensuring greater rigidity
      in the final database comprised of all extracted reports."""
     cumulative_df = []
@@ -46,7 +48,7 @@ def concatenate_tables(argv):
                     extracted_tables_at, f"{report.group_name}_{report.end_of_year}.csv"
                 )
                 if not exists(extracted_report_path):
-                    logger.error("%s not extracted so not in output file.", report)
+                    logger.info("%s not extracted so not in output file.", report)
                     continue
                 dataframe = pd.read_csv(
                     extracted_report_path,
@@ -55,8 +57,8 @@ def concatenate_tables(argv):
                 apply_rules_to_rows(dataframe, report, rules)
                 trim_dataframe(dataframe)
                 cumulative_df.append(dataframe)
-            except Exception as exception:
-                logger.error(exception)
+            except StandardizationError as exception:
+                logger.error(exception, exc_info=True)
 
         pd.concat(cumulative_df).to_csv(
             aggregate_output_path, index=False, quoting=csv.QUOTE_NONNUMERIC

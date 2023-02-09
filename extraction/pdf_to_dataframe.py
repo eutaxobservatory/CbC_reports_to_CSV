@@ -1,17 +1,19 @@
+"""This module contains the functions to extract tables from PDFs and convert them to dataframes. If input is in Excel of equivalent, module is bypassed."""
 import abc
 import json
 import os
 import time
 from concurrent import futures
 from os.path import exists
+from pkgutil import get_data
 
 import camelot.io as camelot
 import dill as pickle
 import pandas as pd
 from ExtractTable import ExtractTable
 
-from cbc_report import CbCReport
-from log import logger
+from .cbc_report import CbCReport
+from .log import logger
 
 
 def get_remote_ET_result(et_sess: ExtractTable, file_path, pages):
@@ -64,7 +66,6 @@ class AbstractExtractor(abc.ABC):
     @abc.abstractmethod
     def check_cache(self, report: CbCReport) -> bool:
         """Returns True if the cache exists, False otherwise."""
-        pass
 
     @abc.abstractmethod
     def write_cache(self, report: CbCReport, jobs: list[futures.Future] | None) -> None:
@@ -106,7 +107,9 @@ class ExtractTableExtractor(AbstractExtractor):
                 logger.info("ET.com - worker finished. \n%s \n%s", report, time.time())
                 for tb_number, table in enumerate(l):
                     tables[tb_number] = table
-                with open(os.path.join(self.cache_path, file_name), "w") as outfile:
+                with open(
+                    os.path.join(self.cache_path, file_name), "w", encoding="utf-8"
+                ) as outfile:
                     json.dump(tables, outfile)
 
     def submit_jobs(self, report: CbCReport) -> list[futures.Future] | None:
@@ -117,7 +120,9 @@ class ExtractTableExtractor(AbstractExtractor):
                 "\nExtracting %s with ExtractTable.com\n", report, exc_info=True
             )
             # DO NOT PUT KEY ONLINE PUBLICLY! Save it in a local file.
-            et_sess = ExtractTable(api_key=open(".et_key", "r").read())
+            raw_api_key = get_data(__package__, ".et_key")
+            api_key = raw_api_key.decode("utf-8")
+            et_sess = ExtractTable(api_key=api_key)
             logger.info("submitting %s to ET", report)
             return [
                 self.executor.submit(get_remote_ET_result, et_sess, file_path, pages)
@@ -134,6 +139,7 @@ class ExtractTableExtractor(AbstractExtractor):
                 self.cache_path, f"{os.path.basename(report.filename_of_source)}.json"
             ),
             "r",
+            encoding="utf-8",
         ) as f:
             et_json = json.load(f)
         dfs = []
@@ -154,6 +160,7 @@ class ExtractTableExtractor(AbstractExtractor):
             )
             dfs.append(df)
         return dfs
+
 
 class CamelotExtractor(AbstractExtractor):
     def __init__(
@@ -191,7 +198,9 @@ class CamelotExtractor(AbstractExtractor):
                         tables,
                     )
                 )
-            with open(os.path.join(self.cache_path, file_name), "w") as outfile:
+            with open(
+                os.path.join(self.cache_path, file_name), "w", encoding="utf-8"
+            ) as outfile:
                 json.dump(method_extraction, outfile, indent=4)
 
     def submit_jobs(self, report: CbCReport) -> list[futures.Future] | None:
@@ -233,6 +242,7 @@ class CamelotExtractor(AbstractExtractor):
                 self.cache_path, f"{os.path.basename(report.filename_of_source)}.json"
             ),
             "r",
+            encoding="utf-8",
         ) as f:
             tables = json.load(f)
         try:

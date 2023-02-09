@@ -1,7 +1,8 @@
+""" This module contains the CbCReport class, which represents a Country-by-Country report to be extracted. It also exports the get_reports_from_metadata function, which returns a list of CbCReport objects from a metadata file or string."""
 import json
-from exceptions import MetadataError
+from .exceptions import MetadataError
 
-
+__all__ = ["CbCReport", "get_reports_from_metadata"]
 class CbCReport:
     """Represents a Country-by-Country report to be extracted. It is comprised of metadata information to be used during the extraction process, such as the name of the group, the end of the reporting period, the base units used in the report, the currency, the parent entity name, the NACE2 main code, the NACE2 core code, the columns to flip, the BVD sector, the parent jurisdiction, and the pages where the tables are located. It also contains the filename of the source PDF file."""
     def __init__(self, group_name, end_of_year, metadata: dict) -> None:

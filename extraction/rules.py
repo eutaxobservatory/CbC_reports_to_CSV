@@ -1,10 +1,12 @@
+"""This module contains the class Rules. The rules are stored in the disk as a JSON file, and are loaded into the Rules object before the extraction process begins. The rules are used to determine which columns and row are to be extracted from a given CbC report and which names should be used."""
 import json
 import re
 
-from cbc_report import CbCReport
-from utils import partition
-from exceptions import RulesError
+from .cbc_report import CbCReport
+from .utils import partition
+from .exceptions import RulesError
 
+__all__ = ["Rules"]
 class Rules:
     """Class representing all the rules for the extraction of (usually) multiple CbC reports. Rules exist along 2 axes: rules for column names vs for jurisdiction codes; regex rules vs strict rules. When prompted due to unknown name, the operator sets the scope of a rule being created: it may apply to all reports, to all reports of a given MNC, or to a given report. This handles queries to the rules (of the form "given this CbCR report and the source, what is the applicable sink?"), and can write the rules to a file."""
     def __init__(self, rules : str):
@@ -13,7 +15,7 @@ class Rules:
                 self._all = json.loads(rules)
             except json.decoder.JSONDecodeError as exc:
                 print(exc)
-                with open(rules, mode="r") as infile:
+                with open(rules, mode="r", encoding="utf-8") as infile:
                     self._all = json.load(infile)
             self._column = self._all["column_rules"]
             self._jurisdiction = self._all["jurisdiction_rules"]
@@ -26,7 +28,7 @@ class Rules:
         return self._column
 
     def write(self, rules_file):
-        with open(rules_file, "w") as json_file:
+        with open(rules_file, "w", encoding="utf-8") as json_file:
             json.dump(self._all, json_file, indent=4)
 
     def get_sink_from_strict(self, report: CbCReport, source: str, col_or_jur):
@@ -159,5 +161,5 @@ class Rules:
             return out
 
         header = "type_of_rule, mnc, report_end_of_year, column_name_found, column_name_assigned, justification\n"
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(header + "\n".join(extract_objects(self._all)))

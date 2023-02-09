@@ -1,25 +1,33 @@
 import csv
 import re
 from itertools import filterfalse, tee
-from os.path import join
+from pkgutil import get_data
 
 import pandas as pd
 import pycountry
-from log import logger
+from .log import logger
 
 pd.set_option("display.max_columns", None)
 
 
-PATH_EXCHANGE_RATES = join("configuration", "rolling_avg_rate.csv")
-PATH_COUNTRY_NAME_TO_ISO3166 = join("configuration", "countryish_names_to_code.csv")
-
-with open(PATH_COUNTRY_NAME_TO_ISO3166, mode="r") as infile:  # country_fix
-    CONTRY_TO_ISO3166_MAPPING = dict(
-        (row[0].casefold(), row[1]) for row in csv.reader(infile) if row[1]
+EXCHANGE_RATES = dict(
+    ((row[0], row[1]), row[3])
+    for row in csv.reader(
+        get_data(__package__, "configuration/rolling_avg_rate.csv")
+        .decode("utf-8")
+        .splitlines()
     )
-with open(PATH_EXCHANGE_RATES, mode="r") as infile:  # exchange_rate
-    EXCHANGE_RATES = dict(((row[0], row[1]), row[3]) for row in csv.reader(infile))
+)
 
+CONTRY_TO_ISO3166_MAPPING = dict(
+    (row[0].casefold(), row[1])
+    for row in csv.reader(
+        get_data(__package__, "configuration/countryish_names_to_code.csv")
+        .decode("utf-8")
+        .splitlines()
+    )
+    if row[1]
+)
 
 ISO3166_ALPHA3 = set([i.alpha_3 for i in pycountry.countries])
 ISO3166_ALPHA3.add("XKX")  # Kosovo
@@ -69,7 +77,7 @@ def jurisdiction_to_iso3166(z):
         try:
             logger.debug(my_search_fuzzy(pycountry.countries, x))
             c = my_search_fuzzy(pycountry.countries, x)[0][0]
-        except:
+        except LookupError:
             # don't bother if fails, more attempts to ensue.
             pass
     # "<empty> so that it is easier to extract with sanity_checks.get_non_standard_jurisdiction"

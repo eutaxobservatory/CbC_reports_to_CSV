@@ -3,7 +3,7 @@ import sys
 import unittest
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from cbc_report import CbCReport, get_reports_from_metadata
+from extraction import get_reports_from_metadata
 
 
 class TestCBCReport(unittest.TestCase):
