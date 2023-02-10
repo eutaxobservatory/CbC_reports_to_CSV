@@ -7,14 +7,14 @@ from os.path import exists
 import pandas as pd
 
 from .cbc_report import CbCReport
-from .exceptions import (IncompatibleTables, NoCbCReportFound,
-                         StandardizationError)
+from .exceptions import IncompatibleTables, NoCbCReportFound, StandardizationError
 from .log import logger
 from .pdf_to_dataframe import get_DataFrames
 from .rules import Rules
 from .standardize_dataframe import standardize_dataframe, unify_CbCR_tables
 
 __all__ = ["extract_all_reports"]
+
 
 def extract_all_reports(
     reports: list[CbCReport],
@@ -27,6 +27,7 @@ def extract_all_reports(
     force_rewrite=False,
     operator_wont_intervene=False,
     quiet=False,
+    key=None,
 ):
     """Attempts to create a unique and standardized CSV file for each reports from the metadata file, using the rules file, the pdf repository and the CSV files that have been manually edited. Extracted files will be named '<mnc_id>_<end_of_year>.csv' and be on the specified directory <write_tables_to_dir>. May update the rules during execution (Rules object gets updated in-place).
 
@@ -34,6 +35,7 @@ def extract_all_reports(
     ExtractTable.com's extractions will be named '<mnc_id>_<end_of_year>_<table_number>.csv'. Camelot-py's extractions have the same naming convention but  will be in '<intermediate_files_dir>/<mnc_id>_<end_of_year>/camelot/'."""
 
     def extract_one(
+        key,
         executor,
         report,
         rules,
@@ -63,6 +65,7 @@ def extract_all_reports(
             # each file is ran by the 3rd party software only once. the results are cached in root/extraction/ExtractTable.com/
             elif exists(os.path.join(input_pdf_directory, report.filename_of_source)):
                 dfs = get_DataFrames(
+                    key,
                     report,
                     input_pdf_directory,
                     executor=executor,
@@ -101,6 +104,7 @@ def extract_all_reports(
     with futures.ProcessPoolExecutor(max_workers=4) as executor:
         for report in [r for r in reports if r.to_extract][:default_max_reports]:
             operator_wont_intervene, success, df = extract_one(
+                key,
                 executor,
                 report,
                 rules,

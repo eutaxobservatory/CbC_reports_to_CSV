@@ -5,7 +5,6 @@ import os
 import time
 from concurrent import futures
 from os.path import exists
-from pkgutil import get_data
 
 import camelot.io as camelot
 import dill as pickle
@@ -85,11 +84,13 @@ class AbstractExtractor(abc.ABC):
 class ExtractTableExtractor(AbstractExtractor):
     def __init__(
         self,
+        key,
         pdf_repo_path,
         intermediate_files_dir,
         executor: futures.ProcessPoolExecutor,
     ) -> None:
         super().__init__(pdf_repo_path, intermediate_files_dir, executor)
+        self.key = key
         self.cache_path = os.path.join(intermediate_files_dir, "ExtractTable.com_cache")
         os.makedirs(self.cache_path, exist_ok=True)
 
@@ -114,15 +115,12 @@ class ExtractTableExtractor(AbstractExtractor):
 
     def submit_jobs(self, report: CbCReport) -> list[futures.Future] | None:
         if not self.check_cache(report):
-            file_path = "".join([self.pdf_repo_path, report.filename_of_source])
+            file_path = os.path.join(self.pdf_repo_path, report.filename_of_source)
             pages = report.pages
             logger.info(
                 "\nExtracting %s with ExtractTable.com\n", report, exc_info=True
             )
-            # DO NOT PUT KEY ONLINE PUBLICLY! Save it in a local file.
-            raw_api_key = get_data(__package__, ".et_key")
-            api_key = raw_api_key.decode("utf-8")
-            et_sess = ExtractTable(api_key=api_key)
+            et_sess = ExtractTable(api_key=self.key)
             logger.info("submitting %s to ET", report)
             return [
                 self.executor.submit(get_remote_ET_result, et_sess, file_path, pages)
@@ -205,7 +203,7 @@ class CamelotExtractor(AbstractExtractor):
 
     def submit_jobs(self, report: CbCReport) -> list[futures.Future] | None:
         if not self.check_cache(report):
-            file_path = "".join([self.pdf_repo_path, report.filename_of_source])
+            file_path = os.path.join(self.pdf_repo_path, report.filename_of_source)
             pages = ",".join(map(str, report.pages))
             # 2c. otherwise, get the result from the 3rd party software that transforms the pdf tables into CSV (ExtractTable.com).
             logger.info("\nExtracting %s with camelot\n", report, exc_info=True)
@@ -291,6 +289,7 @@ class TableAcc:
 
 
 def get_DataFrames(
+    key: str,
     report: CbCReport,
     pdf_repo_path,
     executor: futures.ProcessPoolExecutor,
@@ -299,7 +298,7 @@ def get_DataFrames(
     """Returns tables from ExtractTable.com. Both camelot-py and ExtractTable.com CSV files are written to the intermediate_files_dir so that they can be edited by the operator in case automatic standardization is not possible."""
 
     et_extractor = ExtractTableExtractor(
-        pdf_repo_path, intermediate_files_dir, executor
+        key, pdf_repo_path, intermediate_files_dir, executor
     )
     camelot_extractor = CamelotExtractor(
         pdf_repo_path, intermediate_files_dir, executor

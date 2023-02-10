@@ -4,6 +4,10 @@ sys.path.append("..") # Adds higher directory to python modules path to import e
 
 from extraction import extract_all_reports, get_reports_from_metadata, Rules, concatenate_tables
 
+# DO NOT PUT KEY ONLINE PUBLICLY! Save it in a local file.
+with open(".et_key", "r", encoding="utf-8") as file:
+    api_key = file.read()
+
 init_time = time.time()
 write_tables_to_dir=os.path.join(
         "outputs", "extracted_tables"
@@ -27,7 +31,7 @@ not_extracted = extract_all_reports(
     intermediate_files_dir=os.path.join( "intermediate_files"
     ),
     write_tables_to_dir=write_tables_to_dir,
-    quiet=False,
+    quiet=False, key=api_key,
 )
 
 rules.write(os.path.join( "inputs", "rules.json"))

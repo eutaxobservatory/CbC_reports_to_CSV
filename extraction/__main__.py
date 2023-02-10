@@ -67,6 +67,9 @@ parser.add_argument(
     default=os.path.join("inputs", "files_after_human_intervention"),
     help="the path of the directory with manually edited input CSVs.",
 )
+parser.add_argument(
+    "-k", "--et_key", default=None, help="KEY for the ExtractTable.com API"
+)
 args = parser.parse_args()
 
 rules = Rules(args.rules)
@@ -80,7 +83,7 @@ not_extracted = extract_all_reports(
     intervened_dir=args.after_intervention_dir,
     intermediate_files_dir=args.intermediate_files_dir,
     write_tables_to_dir=args.write_tables_to_dir,
-    quiet=args.quiet,
+    quiet=args.quiet, key=args.et_key
 )
 
 rules.write(args.rules)
