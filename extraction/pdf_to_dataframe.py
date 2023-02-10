@@ -13,6 +13,7 @@ from ExtractTable import ExtractTable
 
 from .cbc_report import CbCReport
 from .log import logger
+from .exceptions import ExtractionError
 
 
 def get_remote_ET_result(et_sess: ExtractTable, file_path, pages):
@@ -120,7 +121,10 @@ class ExtractTableExtractor(AbstractExtractor):
             logger.info(
                 "\nExtracting %s with ExtractTable.com\n", report, exc_info=True
             )
-            et_sess = ExtractTable(api_key=self.key)
+            if self.key:
+                et_sess = ExtractTable(api_key=self.key)
+            else:
+                raise ExtractionError("no ExtractTable.com key provided")
             logger.info("submitting %s to ET", report)
             return [
                 self.executor.submit(get_remote_ET_result, et_sess, file_path, pages)
@@ -304,6 +308,10 @@ def get_DataFrames(
         pdf_repo_path, intermediate_files_dir, executor
     )
     camelot_jobs = camelot_extractor.submit_jobs(report)
-    et_jobs = et_extractor.submit_jobs(report)
-    camelot_extractor.read_cache_write_intermediate_tables(report, camelot_jobs)
+    try:
+        et_jobs = et_extractor.submit_jobs(report)
+    except ExtractionError as exc:
+        raise exc
+    finally:
+        camelot_extractor.read_cache_write_intermediate_tables(report, camelot_jobs)
     return et_extractor.read_cache_write_intermediate_tables(report, et_jobs)

@@ -7,7 +7,7 @@ from os.path import exists
 import pandas as pd
 
 from .cbc_report import CbCReport
-from .exceptions import IncompatibleTables, NoCbCReportFound, StandardizationError
+from .exceptions import ExtractionError, IncompatibleTables, NoCbCReportFound, StandardizationError
 from .log import logger
 from .pdf_to_dataframe import get_DataFrames
 from .rules import Rules
@@ -64,13 +64,19 @@ def extract_all_reports(
             # 2b. otherwise, get the result from the 3rd party software that transforms the pdf tables into CSV (ExtractTable.com).
             # each file is ran by the 3rd party software only once. the results are cached in root/extraction/ExtractTable.com/
             elif exists(os.path.join(input_pdf_directory, report.filename_of_source)):
-                dfs = get_DataFrames(
+                try:
+                    dfs = get_DataFrames(
                     key,
                     report,
                     input_pdf_directory,
                     executor=executor,
                     intermediate_files_dir=intermediate_files_dir,
                 )
+                except ExtractionError as e:
+                    logger.error(
+                        "Extraction error on %s :\n%s\n\n", report, e, exc_info=True
+                    )
+                    return operator_wont_intervene, False, None
             else:
                 raise FileNotFoundError(
                     f"Source file not found at {os.path.join(input_pdf_directory, report.filename_of_source)}."

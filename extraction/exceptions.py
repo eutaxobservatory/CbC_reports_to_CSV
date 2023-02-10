@@ -9,3 +9,5 @@ class MetadataError(AttributeError):
     pass
 class RulesError(ValueError):
     pass
+class ExtractionError(ValueError):
+    pass
