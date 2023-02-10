@@ -14,7 +14,6 @@ class Rules:
             try:
                 self._all = json.loads(rules)
             except json.decoder.JSONDecodeError as exc:
-                print(exc)
                 with open(rules, mode="r", encoding="utf-8") as infile:
                     self._all = json.load(infile)
             self._column = self._all["column_rules"]
